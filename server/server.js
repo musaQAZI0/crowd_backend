@@ -115,7 +115,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Passport configuration
-require('./config/passport')(passport);
+require('./config/passport');
 
 // View engine setup
 app.set('view engine', 'ejs');
