@@ -2,7 +2,7 @@ const express = require('express');
 const passport = require('passport');
 const Joi = require('joi');
 const User = require('../models/User');
-const { generateToken, generateTokenSimple, authenticateToken, logoutUser, getUserAuthStatus, getActiveSessions, revokeAllSessions } = require('../middleware/auth');
+const { generateTokens, authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -69,7 +69,7 @@ router.post('/register', async (req, res) => {
     const { email, password, firstName, lastName, isOrganizer, phone, location } = value;
 
     // Check if user already exists
-    const existingUser = await User.findByEmail(email);
+    const existingUser = await User.findByEmailOrUsername(email);
     if (existingUser) {
       return res.status(409).json({ 
         message: 'An account with this email already exists' 
@@ -77,13 +77,14 @@ router.post('/register', async (req, res) => {
     }
 
     // Create new user
+    const username = email.split('@')[0] + '_' + Math.random().toString(36).substr(2, 5);
     const userData = {
       email,
+      username,
       password,
       firstName,
       lastName,
-      role: isOrganizer ? 'organizer' : 'user',
-      loginMethod: 'local'
+      isOrganizer: isOrganizer || false
     };
 
     if (phone) userData.phone = phone;
@@ -92,13 +93,14 @@ router.post('/register', async (req, res) => {
     const user = new User(userData);
     await user.save();
 
-    // Generate token with status tracking
-    const token = await generateToken(user, req);
+    // Generate tokens
+    const { accessToken, refreshToken } = generateTokens(user._id);
 
     res.status(201).json({
       success: true,
       message: 'Account created successfully',
-      token,
+      token: accessToken,
+      refreshToken,
       user: user.getPublicProfile()
     });
 
