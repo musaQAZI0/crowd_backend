@@ -7,9 +7,9 @@ yarn-error.log*
 # Environment variables
 .env
 .env.local
-.env.development
-.env.test
-.env.production
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Logs
 logs
@@ -25,9 +25,6 @@ pids
 coverage/
 *.lcov
 
-# nyc test coverage
-.nyc_output
-
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -37,20 +34,17 @@ coverage/
 ehthumbs.db
 Thumbs.db
 
-# IDE
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# Build files
-dist/
-build/
-
-# Database files (if using local storage)
-*.db
-*.sqlite
+*~
 
 # Temporary files
-tmp/
-temp/
+*.tmp
+*.temp
+
+# Build outputs
+dist/
+build/

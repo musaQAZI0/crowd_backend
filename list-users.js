@@ -1,1 +1,0 @@
-const { connectDB } = require('./server/database/mongodb'); const User = require('./server/database/models/User'); async function listUsers() { await connectDB(); const users = await User.find({}, 'email username isAdmin'); console.log('Existing users:', users); process.exit(0); } listUsers();
