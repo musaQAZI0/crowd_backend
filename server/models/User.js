@@ -209,4 +209,8 @@ userSchema.statics.findByEmailOrUsername = function(identifier) {
   });
 };
 
+userSchema.statics.findByEmail = function(email) {
+  return this.findOne({ email: email.toLowerCase() });
+};
+
 module.exports = mongoose.model('User', userSchema);
