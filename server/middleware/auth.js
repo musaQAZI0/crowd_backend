@@ -1,6 +1,10 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+// Consistent fallback secrets for development/production without env vars
+const JWT_SECRET = process.env.JWT_SECRET || 'crowd-app-jwt-secret-key-2025-fallback';
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'crowd-app-refresh-secret-key-2025-fallback';
+
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
@@ -13,7 +17,7 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.userId).select('-password -refreshTokens');
 
     if (!user || user.accountStatus !== 'active') {
@@ -52,7 +56,7 @@ const optionalAuth = async (req, res, next) => {
     const token = authHeader && authHeader.split(' ')[1];
 
     if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, JWT_SECRET);
       const user = await User.findById(decoded.userId).select('-password -refreshTokens');
 
       if (user && user.accountStatus === 'active') {
@@ -147,13 +151,13 @@ const requireActiveAccount = async (req, res, next) => {
 const generateTokens = (userId) => {
   const accessToken = jwt.sign(
     { userId },
-    process.env.JWT_SECRET,
+    JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
   );
 
   const refreshToken = jwt.sign(
     { userId, type: 'refresh' },
-    process.env.JWT_REFRESH_SECRET,
+    JWT_REFRESH_SECRET,
     { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
   );
 
@@ -162,7 +166,7 @@ const generateTokens = (userId) => {
 
 const verifyRefreshToken = async (token) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+    const decoded = jwt.verify(token, JWT_REFRESH_SECRET);
     
     if (decoded.type !== 'refresh') {
       throw new Error('Invalid token type');
