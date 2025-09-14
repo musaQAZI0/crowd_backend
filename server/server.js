@@ -78,7 +78,7 @@ const corsOptions = {
         'https://dazzling-pithivier-2cf3ce.netlify.app',
         process.env.FRONTEND_URL
       ].filter(Boolean) // Remove any undefined values
-    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://localhost:8001', 'http://localhost:8080', 'http://127.0.0.1:8080', 'http://127.0.0.1:5500'],
+    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://localhost:8001', 'http://localhost:8080', 'http://127.0.0.1:8080', 'http://localhost:8081', 'http://127.0.0.1:8081', 'http://192.168.1.4:8081', 'http://127.0.0.1:5500'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
@@ -147,7 +147,7 @@ app.use('/', pageRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  const currentPort = process.env.PORT || 3003;
+  const currentPort = process.env.PORT || 3002;
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
@@ -180,7 +180,7 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-const PORT = process.env.PORT || 3003;
+const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
