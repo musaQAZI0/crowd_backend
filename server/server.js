@@ -147,7 +147,7 @@ app.use('/', pageRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  const currentPort = process.env.PORT || 3003;
+  const currentPort = process.env.PORT || 3002;
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
@@ -180,7 +180,7 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-const PORT = process.env.PORT || 3003;
+const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
