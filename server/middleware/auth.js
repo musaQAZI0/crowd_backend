@@ -27,7 +27,41 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
+    // Check if token exists in active sessions
+    const activeToken = user.authStatus?.activeTokens?.find(t => t.token === token);
+    if (!activeToken) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token not found in active sessions'
+      });
+    }
+
+    // Check if token is expired
+    if (activeToken.expiresAt < new Date()) {
+      // Remove expired token
+      await User.findByIdAndUpdate(user._id, {
+        $pull: { 'authStatus.activeTokens': { token: token } }
+      });
+      return res.status(401).json({
+        success: false,
+        message: 'Session expired'
+      });
+    }
+
+    // Update last activity
+    await User.findOneAndUpdate(
+      { _id: user._id, 'authStatus.activeTokens.token': token },
+      {
+        $set: {
+          'authStatus.activeTokens.$.lastActivity': new Date(),
+          'authStatus.lastSeen': new Date(),
+          'authStatus.isOnline': true
+        }
+      }
+    );
+
     req.user = user;
+    req.sessionToken = token;
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {

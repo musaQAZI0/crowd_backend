@@ -139,6 +139,34 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['active', 'suspended', 'deactivated'],
     default: 'active'
+  },
+  authStatus: {
+    activeTokens: [{
+      token: String,
+      device: String,
+      userAgent: String,
+      ipAddress: String,
+      createdAt: {
+        type: Date,
+        default: Date.now
+      },
+      lastActivity: {
+        type: Date,
+        default: Date.now
+      },
+      expiresAt: {
+        type: Date,
+        default: () => new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+      }
+    }],
+    isOnline: {
+      type: Boolean,
+      default: false
+    },
+    lastSeen: {
+      type: Date,
+      default: Date.now
+    }
   }
 }, {
   timestamps: true,
@@ -185,6 +213,36 @@ userSchema.methods.getPublicProfile = function() {
 
 userSchema.methods.getFullName = function() {
   return `${this.firstName} ${this.lastName}`;
+};
+
+// Clean up expired sessions
+userSchema.methods.cleanExpiredSessions = async function() {
+  const now = new Date();
+
+  if (this.authStatus && this.authStatus.activeTokens) {
+    this.authStatus.activeTokens = this.authStatus.activeTokens.filter(token =>
+      token.expiresAt > now
+    );
+
+    // Update online status if no active sessions
+    if (this.authStatus.activeTokens.length === 0) {
+      this.authStatus.isOnline = false;
+      this.authStatus.lastSeen = now;
+    }
+  }
+
+  return this.save();
+};
+
+// Static method to clean expired sessions for all users
+userSchema.statics.cleanAllExpiredSessions = function() {
+  const now = new Date();
+  return this.updateMany(
+    { 'authStatus.activeTokens.expiresAt': { $lt: now } },
+    {
+      $pull: { 'authStatus.activeTokens': { expiresAt: { $lt: now } } }
+    }
+  );
 };
 
 userSchema.methods.addRefreshToken = function(token) {

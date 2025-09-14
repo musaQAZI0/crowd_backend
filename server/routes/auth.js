@@ -96,12 +96,33 @@ router.post('/register', async (req, res) => {
     // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user._id);
 
+    // Add token to active sessions in database
+    const sessionData = {
+      token: accessToken,
+      device: req.headers['user-agent'] || 'Unknown Device',
+      userAgent: req.headers['user-agent'] || '',
+      ipAddress: req.ip || req.connection.remoteAddress || '',
+      createdAt: new Date(),
+      lastActivity: new Date(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+    };
+
+    await User.findByIdAndUpdate(user._id, {
+      $push: { 'authStatus.activeTokens': sessionData },
+      $set: {
+        'authStatus.isOnline': true,
+        'authStatus.lastSeen': new Date(),
+        lastLogin: new Date()
+      }
+    });
+
     res.status(201).json({
       success: true,
       message: 'Account created successfully',
       token: accessToken,
       refreshToken,
-      user: user.getPublicProfile()
+      user: user.getPublicProfile(),
+      sessionId: sessionData.token
     });
 
   } catch (error) {
@@ -146,11 +167,32 @@ router.post('/login', async (req, res) => {
     // Generate tokens
     const { accessToken } = generateTokens(user._id);
 
+    // Add token to active sessions in database
+    const sessionData = {
+      token: accessToken,
+      device: req.headers['user-agent'] || 'Unknown Device',
+      userAgent: req.headers['user-agent'] || '',
+      ipAddress: req.ip || req.connection.remoteAddress || '',
+      createdAt: new Date(),
+      lastActivity: new Date(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+    };
+
+    await User.findByIdAndUpdate(user._id, {
+      $push: { 'authStatus.activeTokens': sessionData },
+      $set: {
+        'authStatus.isOnline': true,
+        'authStatus.lastSeen': new Date(),
+        lastLogin: new Date()
+      }
+    });
+
     res.json({
       success: true,
       message: 'Login successful',
       token: accessToken,
-      user: user.getPublicProfile()
+      user: user.getPublicProfile(),
+      sessionId: sessionData.token
     });
 
   } catch (error) {
@@ -415,10 +457,26 @@ router.get('/check', async (req, res) => {
   }
 });
 
-// Logout with status tracking
+// Logout with database session cleanup
 router.post('/logout', authenticateToken, async (req, res) => {
   try {
-    // Simple JWT logout - no status tracking needed for basic implementation
+    const token = req.sessionToken;
+
+    // Remove token from active sessions in database
+    await User.findByIdAndUpdate(req.user._id, {
+      $pull: { 'authStatus.activeTokens': { token: token } }
+    });
+
+    // Update user status if no more active sessions
+    const updatedUser = await User.findById(req.user._id);
+    if (!updatedUser.authStatus.activeTokens || updatedUser.authStatus.activeTokens.length === 0) {
+      await User.findByIdAndUpdate(req.user._id, {
+        $set: {
+          'authStatus.isOnline': false,
+          'authStatus.lastSeen': new Date()
+        }
+      });
+    }
 
     // Handle passport session logout
     req.logout((err) => {
@@ -426,16 +484,16 @@ router.post('/logout', authenticateToken, async (req, res) => {
         console.error('Passport logout error:', err);
       }
     });
-    
-    res.json({ 
-      success: true, 
-      message: 'Logged out successfully' 
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
     });
   } catch (error) {
     console.error('Logout error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Logout failed' 
+    res.status(500).json({
+      success: false,
+      message: 'Logout failed'
     });
   }
 });
@@ -493,14 +551,23 @@ router.get('/auth-status', authenticateToken, async (req, res) => {
 // Get active sessions
 router.get('/sessions', authenticateToken, async (req, res) => {
   try {
+    const user = await User.findById(req.user._id);
+    const currentToken = req.sessionToken;
+
+    const sessions = user.authStatus?.activeTokens?.map(session => ({
+      id: session.token.substring(0, 10) + '...',
+      device: session.device,
+      userAgent: session.userAgent,
+      ipAddress: session.ipAddress,
+      createdAt: session.createdAt,
+      lastActivity: session.lastActivity,
+      expiresAt: session.expiresAt,
+      current: session.token === currentToken
+    })) || [];
+
     res.json({
       success: true,
-      sessions: [{
-        id: 'current',
-        device: req.headers['user-agent'] || 'Unknown',
-        lastActivity: new Date(),
-        current: true
-      }]
+      sessions: sessions
     });
   } catch (error) {
     console.error('Sessions fetch error:', error);
@@ -511,15 +578,24 @@ router.get('/sessions', authenticateToken, async (req, res) => {
 // Revoke all sessions
 router.post('/revoke-all-sessions', authenticateToken, async (req, res) => {
   try {
+    // Clear all active tokens from database
+    await User.findByIdAndUpdate(req.user._id, {
+      $set: {
+        'authStatus.activeTokens': [],
+        'authStatus.isOnline': false,
+        'authStatus.lastSeen': new Date()
+      }
+    });
+
     res.json({
       success: true,
       message: 'All sessions revoked successfully'
     });
   } catch (error) {
     console.error('Revoke sessions error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to revoke sessions' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to revoke sessions'
     });
   }
 });
