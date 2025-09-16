@@ -360,6 +360,11 @@ router.post('/create-samples', async (req, res) => {
   }
 });
 
+// Test route - temporary
+router.post('/test', (req, res) => {
+  res.json({ success: true, message: 'POST route working' });
+});
+
 // Create new event (Protected route) - Updated to fix deployment issue
 router.post('/', authenticateToken, async (req, res) => {
   try {
