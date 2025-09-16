@@ -536,7 +536,7 @@ router.post('/upload-image', authenticateToken, async (req, res) => {
     // For now, return a placeholder since we don't have actual file upload configured
     // In production, you'd use multer and cloud storage like AWS S3 or Cloudinary
 
-    const imageUrl = `https://via.placeholder.com/800x400.png?text=Event+Image`;
+    const imageUrl = `https://picsum.photos/800/400?random=${Date.now()}`;
 
     res.json({
       success: true,
