@@ -360,7 +360,7 @@ router.post('/create-samples', async (req, res) => {
   }
 });
 
-// Create new event (Protected route)
+// Create new event (Protected route) - Updated to fix deployment issue
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const eventData = {
