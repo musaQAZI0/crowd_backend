@@ -24,6 +24,17 @@ router.get('/all', async (req, res) => {
   }
 });
 
+// Default users route
+router.get('/', (req, res) => {
+  res.json({
+    message: 'Users API - Available endpoints',
+    endpoints: {
+      '/all': 'GET - Get all active users',
+      '/profile': 'GET - Get user profile (coming soon)'
+    }
+  });
+});
+
 // Placeholder for user routes
 router.get('/profile', (req, res) => {
   res.json({ message: 'User profile endpoint - coming soon' });
