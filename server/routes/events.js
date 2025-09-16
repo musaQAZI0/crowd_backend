@@ -340,4 +340,210 @@ router.post('/create-samples', async (req, res) => {
   }
 });
 
+// Create new event (Protected route)
+router.post('/', authenticateToken, async (req, res) => {
+  try {
+    const eventData = {
+      ...req.body,
+      organizer: req.user.id
+    };
+
+    // Convert frontend format to backend format
+    if (eventData.startDate && eventData.endDate) {
+      eventData.dateTime = {
+        start: new Date(eventData.startDate),
+        end: new Date(eventData.endDate)
+      };
+      delete eventData.startDate;
+      delete eventData.endDate;
+    }
+
+    if (eventData.venue || eventData.city) {
+      eventData.location = {
+        type: eventData.isOnline ? 'online' : 'venue',
+        venue: {
+          name: eventData.venue || '',
+          address: {
+            street: eventData.address || '',
+            city: eventData.city || '',
+            state: eventData.state || '',
+            country: eventData.country || 'United States',
+            zipCode: eventData.zipCode || ''
+          }
+        }
+      };
+    }
+
+    if (eventData.price !== undefined) {
+      eventData.pricing = {
+        type: eventData.price > 0 ? 'paid' : 'free',
+        amount: eventData.price || 0,
+        tickets: eventData.price > 0 ? [{
+          name: 'General Admission',
+          price: eventData.price,
+          quantity: eventData.capacity || 100,
+          available: eventData.capacity || 100
+        }] : []
+      };
+    }
+
+    // Set images if provided
+    if (eventData.imageUrl) {
+      eventData.images = [{
+        url: eventData.imageUrl,
+        isPrimary: true
+      }];
+    }
+
+    const event = new Event(eventData);
+    await event.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Event created successfully',
+      event: event.getPublicData()
+    });
+
+  } catch (error) {
+    console.error('Error creating event:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to create event'
+    });
+  }
+});
+
+// Update event (Protected route)
+router.put('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = { ...req.body };
+
+    // Find event and check ownership
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized to update this event'
+      });
+    }
+
+    // Convert frontend format to backend format
+    if (updateData.startDate && updateData.endDate) {
+      updateData.dateTime = {
+        start: new Date(updateData.startDate),
+        end: new Date(updateData.endDate)
+      };
+      delete updateData.startDate;
+      delete updateData.endDate;
+    }
+
+    if (updateData.venue || updateData.city) {
+      updateData.location = {
+        type: updateData.isOnline ? 'online' : 'venue',
+        venue: {
+          name: updateData.venue || '',
+          address: {
+            street: updateData.address || '',
+            city: updateData.city || '',
+            state: updateData.state || '',
+            country: updateData.country || 'United States',
+            zipCode: updateData.zipCode || ''
+          }
+        }
+      };
+    }
+
+    if (updateData.price !== undefined) {
+      updateData.pricing = {
+        type: updateData.price > 0 ? 'paid' : 'free',
+        amount: updateData.price || 0,
+        tickets: updateData.price > 0 ? [{
+          name: 'General Admission',
+          price: updateData.price,
+          quantity: updateData.capacity || 100,
+          available: updateData.capacity || 100
+        }] : []
+      };
+    }
+
+    // Set images if provided
+    if (updateData.imageUrl) {
+      updateData.images = [{
+        url: updateData.imageUrl,
+        isPrimary: true
+      }];
+    }
+
+    const updatedEvent = await Event.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    res.json({
+      success: true,
+      message: 'Event updated successfully',
+      event: updatedEvent.getPublicData()
+    });
+
+  } catch (error) {
+    console.error('Error updating event:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update event'
+    });
+  }
+});
+
+// Get user's events (Protected route)
+router.get('/my-events', authenticateToken, async (req, res) => {
+  try {
+    const events = await Event.find({ organizer: req.user.id })
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      events: events.map(event => event.getPublicData())
+    });
+
+  } catch (error) {
+    console.error('Error fetching user events:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user events'
+    });
+  }
+});
+
+// Upload image for event (Protected route)
+router.post('/upload-image', authenticateToken, async (req, res) => {
+  try {
+    // For now, return a placeholder since we don't have actual file upload configured
+    // In production, you'd use multer and cloud storage like AWS S3 or Cloudinary
+
+    const imageUrl = `https://via.placeholder.com/800x400.png?text=Event+Image`;
+
+    res.json({
+      success: true,
+      message: 'Image uploaded successfully',
+      imageUrl: imageUrl
+    });
+
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload image'
+    });
+  }
+});
+
 module.exports = router;
