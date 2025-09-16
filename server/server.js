@@ -25,6 +25,8 @@ const financeRoutes = require('./routes/finance');
 const appRoutes = require('./routes/apps');
 const dashboardRoutes = require('./routes/dashboard');
 const organizerRoutes = require('./routes/organizer');
+const monetizeRoutes = require('./routes/monetize');
+const adminRoutes = require('./routes/admin');
 const pageRoutes = require('./routes/pages');
 
 // Connect to MongoDB
@@ -141,6 +143,8 @@ app.use('/api/finance', financeRoutes);
 app.use('/api/apps', appRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/organizer', organizerRoutes);
+app.use('/api/monetize', monetizeRoutes);
+app.use('/api/admin', authLimiter, adminRoutes);
 
 // Page routes
 app.use('/', pageRoutes);
@@ -161,6 +165,7 @@ app.get('/api/health', (req, res) => {
       apps: `http://localhost:${currentPort}/api/apps`,
       dashboard: `http://localhost:${currentPort}/api/dashboard`,
       organizer: `http://localhost:${currentPort}/api/organizer`,
+      monetize: `http://localhost:${currentPort}/api/monetize`,
       frontend: `http://localhost:${currentPort}`
     }
   });
@@ -193,5 +198,6 @@ app.listen(PORT, () => {
   console.log(`   • Apps: http://localhost:${PORT}/api/apps`);
   console.log(`   • Dashboard: http://localhost:${PORT}/api/dashboard`);
   console.log(`   • Organizer: http://localhost:${PORT}/api/organizer`);
+  console.log(`   • Monetize: http://localhost:${PORT}/api/monetize`);
   console.log(`   • Frontend: http://localhost:${PORT}`);
 });

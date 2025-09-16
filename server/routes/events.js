@@ -523,7 +523,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Route moved to proper position before /:id route
+// /my-events route is positioned before /:id route to prevent conflicts
 
 // Upload image for event (Protected route)
 router.post('/upload-image', authenticateToken, async (req, res) => {
