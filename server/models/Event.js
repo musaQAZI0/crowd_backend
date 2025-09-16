@@ -14,9 +14,10 @@ const eventSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    required: true,
+    required: false,
+    default: 'other',
     enum: [
-      'music', 'nightlife', 'performing-arts', 'holidays', 
+      'music', 'nightlife', 'performing-arts', 'holidays',
       'dating', 'hobbies', 'business', 'food-drink',
       'sports-fitness', 'health', 'travel', 'charity',
       'community', 'family', 'education', 'fashion',
