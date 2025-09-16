@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const MonetizeApplication = require('../models/MonetizeApplication');
-const auth = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const { requireAdminAuth } = require('../middleware/adminAuth');
 const rateLimit = require('express-rate-limit');
 
@@ -48,7 +48,7 @@ const validateApplication = (req, res, next) => {
 };
 
 // Submit influencer application
-router.post('/apply/influencer', auth, applicationLimit, validateApplication, async (req, res) => {
+router.post('/apply/influencer', authenticateToken, applicationLimit, validateApplication, async (req, res) => {
   try {
     // Check if user already has a pending/approved influencer application
     const existingApplication = await MonetizeApplication.findOne({
@@ -96,7 +96,7 @@ router.post('/apply/influencer', auth, applicationLimit, validateApplication, as
 });
 
 // Submit venue application
-router.post('/apply/venue', auth, applicationLimit, validateApplication, async (req, res) => {
+router.post('/apply/venue', authenticateToken, applicationLimit, validateApplication, async (req, res) => {
   try {
     // Check if user already has a pending/approved venue application
     const existingApplication = await MonetizeApplication.findOne({
@@ -144,7 +144,7 @@ router.post('/apply/venue', auth, applicationLimit, validateApplication, async (
 });
 
 // Get user's applications
-router.get('/my-applications', auth, async (req, res) => {
+router.get('/my-applications', authenticateToken, async (req, res) => {
   try {
     const applications = await MonetizeApplication.find({ userId: req.user.id })
       .populate('reviewedBy', 'username email')
@@ -158,7 +158,7 @@ router.get('/my-applications', auth, async (req, res) => {
 });
 
 // Get specific application by ID (user's own only)
-router.get('/application/:id', auth, async (req, res) => {
+router.get('/application/:id', authenticateToken, async (req, res) => {
   try {
     const application = await MonetizeApplication.findOne({
       _id: req.params.id,
