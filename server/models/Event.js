@@ -16,14 +16,29 @@ const eventSchema = new mongoose.Schema({
     type: String,
     required: false,
     default: 'other',
-    enum: [
-      'music', 'nightlife', 'performing-arts', 'holidays',
-      'dating', 'hobbies', 'business', 'food-drink',
-      'sports-fitness', 'health', 'travel', 'charity',
-      'community', 'family', 'education', 'fashion',
-      'film', 'games', 'government', 'language-culture',
-      'lgbtq', 'lifestyle', 'other'
-    ]
+    validate: {
+      validator: function(v) {
+        // If no category provided, allow it (will use default)
+        if (!v) return true;
+
+        // Convert to lowercase for validation
+        const validCategories = [
+          'music', 'nightlife', 'performing-arts', 'holidays',
+          'dating', 'hobbies', 'business', 'food-drink',
+          'sports-fitness', 'health', 'travel', 'charity',
+          'community', 'family', 'education', 'fashion',
+          'film', 'games', 'government', 'language-culture',
+          'lgbtq', 'lifestyle', 'other'
+        ];
+
+        return validCategories.includes(v.toLowerCase());
+      },
+      message: 'Invalid category provided'
+    },
+    set: function(v) {
+      // Convert any category to lowercase automatically
+      return v ? v.toLowerCase() : 'other';
+    }
   },
   subcategory: {
     type: String,
