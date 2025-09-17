@@ -126,6 +126,73 @@ const eventSchema = new mongoose.Schema({
       default: false
     }
   }],
+  videos: [{
+    url: String,
+    title: String,
+    duration: Number, // in seconds
+    thumbnail: String
+  }],
+  lineup: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    title: {
+      type: String,
+      default: 'Lineup'
+    },
+    speakers: [{
+      name: {
+        type: String,
+        required: true
+      },
+      tagline: String,
+      description: String,
+      image: String,
+      isHeadliner: {
+        type: Boolean,
+        default: false
+      },
+      socialLinks: {
+        website: String,
+        twitter: String,
+        linkedin: String,
+        instagram: String
+      },
+      order: {
+        type: Number,
+        default: 0
+      }
+    }]
+  },
+  agenda: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    schedules: [{
+      title: {
+        type: String,
+        default: 'Agenda'
+      },
+      date: Date,
+      items: [{
+        title: {
+          type: String,
+          required: true
+        },
+        startTime: String, // HH:MM format
+        endTime: String,   // HH:MM format
+        description: String,
+        host: String,
+        location: String,
+        order: {
+          type: Number,
+          default: 0
+        }
+      }]
+    }]
+  },
   capacity: {
     total: Number,
     available: Number
@@ -173,7 +240,37 @@ const eventSchema = new mongoose.Schema({
     enableComments: {
       type: Boolean,
       default: true
+    },
+    listed: {
+      type: Boolean,
+      default: true
+    },
+    shareable: {
+      type: Boolean,
+      default: true
+    },
+    inviteOnly: {
+      type: Boolean,
+      default: false
+    },
+    showRemaining: {
+      type: Boolean,
+      default: true
+    },
+    onlineEvent: {
+      type: Boolean,
+      default: false
     }
+  },
+  summary: {
+    type: String,
+    maxlength: 140
+  },
+  password: String,
+  currency: {
+    type: String,
+    default: 'USD',
+    enum: ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY']
   },
   socialLinks: {
     facebook: String,

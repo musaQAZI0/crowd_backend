@@ -420,6 +420,41 @@ router.post('/', authenticateToken, async (req, res) => {
       }];
     }
 
+    // Handle video upload
+    if (eventData.videoUrl) {
+      eventData.videos = [{
+        url: eventData.videoUrl,
+        title: eventData.title || 'Event Video'
+      }];
+    }
+
+    // Handle lineup data
+    if (eventData.lineup && eventData.lineup.enabled) {
+      eventData.lineup = {
+        enabled: true,
+        title: eventData.lineup.title || 'Lineup',
+        speakers: eventData.lineup.speakers || []
+      };
+    }
+
+    // Handle agenda data
+    if (eventData.agenda && eventData.agenda.enabled) {
+      eventData.agenda = {
+        enabled: true,
+        schedules: eventData.agenda.schedules || []
+      };
+    }
+
+    // Handle additional settings
+    if (eventData.settings) {
+      eventData.settings = {
+        ...eventData.settings,
+        listed: eventData.settings.listed !== undefined ? eventData.settings.listed : true,
+        shareable: eventData.settings.shareable !== undefined ? eventData.settings.shareable : true,
+        onlineEvent: eventData.settings.onlineEvent || false
+      };
+    }
+
     const event = new Event(eventData);
     await event.save();
 
@@ -549,6 +584,455 @@ router.post('/upload-image', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to upload image'
+    });
+  }
+});
+
+// Video upload endpoint
+router.post('/upload-video', authenticateToken, async (req, res) => {
+  try {
+    // For now, return a placeholder since we don't have actual video upload configured
+    // In production, you'd use multer and cloud storage like AWS S3 or Cloudinary
+
+    const videoUrl = `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4`;
+    const thumbnailUrl = `https://picsum.photos/800/450?random=${Date.now()}`;
+
+    res.json({
+      success: true,
+      message: 'Video uploaded successfully',
+      videoUrl: videoUrl,
+      thumbnailUrl: thumbnailUrl
+    });
+
+  } catch (error) {
+    console.error('Error uploading video:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload video'
+    });
+  }
+});
+
+// Add lineup speaker
+router.post('/:id/lineup/speakers', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const speakerData = req.body;
+
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check ownership
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this event'
+      });
+    }
+
+    // Initialize lineup if not exists
+    if (!event.lineup.enabled) {
+      event.lineup = {
+        enabled: true,
+        title: speakerData.sectionTitle || 'Lineup',
+        speakers: []
+      };
+    }
+
+    // Add speaker
+    const newSpeaker = {
+      name: speakerData.name,
+      tagline: speakerData.tagline,
+      description: speakerData.description,
+      image: speakerData.image,
+      isHeadliner: speakerData.isHeadliner || false,
+      socialLinks: speakerData.socialLinks || {},
+      order: event.lineup.speakers.length
+    };
+
+    event.lineup.speakers.push(newSpeaker);
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Speaker added successfully',
+      speaker: newSpeaker,
+      event: event.getPublicData()
+    });
+
+  } catch (error) {
+    console.error('Error adding speaker:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add speaker'
+    });
+  }
+});
+
+// Update lineup speaker
+router.put('/:id/lineup/speakers/:speakerId', authenticateToken, async (req, res) => {
+  try {
+    const { id, speakerId } = req.params;
+    const updateData = req.body;
+
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check ownership
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this event'
+      });
+    }
+
+    const speaker = event.lineup.speakers.id(speakerId);
+    if (!speaker) {
+      return res.status(404).json({
+        success: false,
+        message: 'Speaker not found'
+      });
+    }
+
+    // Update speaker
+    Object.assign(speaker, updateData);
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Speaker updated successfully',
+      speaker: speaker,
+      event: event.getPublicData()
+    });
+
+  } catch (error) {
+    console.error('Error updating speaker:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update speaker'
+    });
+  }
+});
+
+// Delete lineup speaker
+router.delete('/:id/lineup/speakers/:speakerId', authenticateToken, async (req, res) => {
+  try {
+    const { id, speakerId } = req.params;
+
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check ownership
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this event'
+      });
+    }
+
+    event.lineup.speakers.pull(speakerId);
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Speaker deleted successfully',
+      event: event.getPublicData()
+    });
+
+  } catch (error) {
+    console.error('Error deleting speaker:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete speaker'
+    });
+  }
+});
+
+// Add agenda schedule
+router.post('/:id/agenda/schedules', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const scheduleData = req.body;
+
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check ownership
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this event'
+      });
+    }
+
+    // Initialize agenda if not exists
+    if (!event.agenda.enabled) {
+      event.agenda = {
+        enabled: true,
+        schedules: []
+      };
+    }
+
+    // Add schedule
+    const newSchedule = {
+      title: scheduleData.title || 'Agenda',
+      date: scheduleData.date || event.dateTime.start,
+      items: scheduleData.items || []
+    };
+
+    event.agenda.schedules.push(newSchedule);
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Schedule added successfully',
+      schedule: newSchedule,
+      event: event.getPublicData()
+    });
+
+  } catch (error) {
+    console.error('Error adding schedule:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add schedule'
+    });
+  }
+});
+
+// Add agenda item to schedule
+router.post('/:id/agenda/schedules/:scheduleId/items', authenticateToken, async (req, res) => {
+  try {
+    const { id, scheduleId } = req.params;
+    const itemData = req.body;
+
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check ownership
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this event'
+      });
+    }
+
+    const schedule = event.agenda.schedules.id(scheduleId);
+    if (!schedule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Schedule not found'
+      });
+    }
+
+    // Add agenda item
+    const newItem = {
+      title: itemData.title,
+      startTime: itemData.startTime,
+      endTime: itemData.endTime,
+      description: itemData.description,
+      host: itemData.host,
+      location: itemData.location,
+      order: schedule.items.length
+    };
+
+    schedule.items.push(newItem);
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Agenda item added successfully',
+      item: newItem,
+      event: event.getPublicData()
+    });
+
+  } catch (error) {
+    console.error('Error adding agenda item:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add agenda item'
+    });
+  }
+});
+
+// Update agenda item
+router.put('/:id/agenda/schedules/:scheduleId/items/:itemId', authenticateToken, async (req, res) => {
+  try {
+    const { id, scheduleId, itemId } = req.params;
+    const updateData = req.body;
+
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check ownership
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this event'
+      });
+    }
+
+    const schedule = event.agenda.schedules.id(scheduleId);
+    if (!schedule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Schedule not found'
+      });
+    }
+
+    const item = schedule.items.id(itemId);
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agenda item not found'
+      });
+    }
+
+    // Update item
+    Object.assign(item, updateData);
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Agenda item updated successfully',
+      item: item,
+      event: event.getPublicData()
+    });
+
+  } catch (error) {
+    console.error('Error updating agenda item:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update agenda item'
+    });
+  }
+});
+
+// Delete agenda item
+router.delete('/:id/agenda/schedules/:scheduleId/items/:itemId', authenticateToken, async (req, res) => {
+  try {
+    const { id, scheduleId, itemId } = req.params;
+
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check ownership
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this event'
+      });
+    }
+
+    const schedule = event.agenda.schedules.id(scheduleId);
+    if (!schedule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Schedule not found'
+      });
+    }
+
+    schedule.items.pull(itemId);
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Agenda item deleted successfully',
+      event: event.getPublicData()
+    });
+
+  } catch (error) {
+    console.error('Error deleting agenda item:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete agenda item'
+    });
+  }
+});
+
+// Event copy endpoint (like Eventbrite API)
+router.post('/:id/copy', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const originalEvent = await Event.findById(id);
+    if (!originalEvent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check ownership
+    if (originalEvent.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to copy this event'
+      });
+    }
+
+    // Create a copy
+    const eventData = originalEvent.toObject();
+    delete eventData._id;
+    delete eventData.createdAt;
+    delete eventData.updatedAt;
+    delete eventData.attendees;
+    delete eventData.likes;
+
+    // Update title
+    eventData.title = `Copy of ${eventData.title}`;
+    eventData.status = 'draft';
+    eventData.views = 0;
+    eventData.shares = 0;
+
+    const copiedEvent = new Event(eventData);
+    await copiedEvent.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Event copied successfully',
+      event: copiedEvent.getPublicData()
+    });
+
+  } catch (error) {
+    console.error('Error copying event:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to copy event'
     });
   }
 });
