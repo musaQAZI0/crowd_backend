@@ -243,6 +243,14 @@ eventSchema.methods.getPublicData = function() {
   const eventObj = this.toObject();
   eventObj.attendeeCount = this.attendeeCount;
   eventObj.likesCount = this.likesCount;
+
+  // Add primary image for frontend convenience
+  if (this.images && this.images.length > 0) {
+    const primaryImage = this.images.find(img => img.isPrimary) || this.images[0];
+    eventObj.primaryImage = primaryImage.url;
+    eventObj.imageUrl = primaryImage.url; // For backward compatibility
+  }
+
   return eventObj;
 };
 
