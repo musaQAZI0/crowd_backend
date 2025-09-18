@@ -1,7 +1,35 @@
 const express = require('express');
 const Joi = require('joi');
+const multer = require('multer');
+const path = require('path');
 const Event = require('../models/Event');
 const { authenticateToken } = require('../middleware/auth');
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow images and videos
+    const allowedMimes = [
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'video/mp4',
+      'video/mov',
+      'video/avi'
+    ];
+
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG images and MP4, MOV videos are allowed.'));
+    }
+  }
+});
 
 const router = express.Router();
 
@@ -566,49 +594,107 @@ router.put('/:id', authenticateToken, async (req, res) => {
 // /my-events route is positioned before /:id route to prevent conflicts
 
 // Upload image for event (Protected route)
-router.post('/upload-image', authenticateToken, async (req, res) => {
+router.post('/upload-image', authenticateToken, upload.single('image'), async (req, res) => {
   try {
-    // For now, return a placeholder since we don't have actual file upload configured
-    // In production, you'd use multer and cloud storage like AWS S3 or Cloudinary
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
+    }
 
+    // For development, we'll use placeholder URLs
+    // In production, you'd upload to AWS S3, Cloudinary, or similar service
     const imageUrl = `https://picsum.photos/800/400?random=${Date.now()}`;
+
+    // Log file details for debugging
+    console.log('Image upload details:', {
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      user: req.user.id
+    });
 
     res.json({
       success: true,
       message: 'Image uploaded successfully',
-      imageUrl: imageUrl
+      imageUrl: imageUrl,
+      fileDetails: {
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size
+      }
     });
 
   } catch (error) {
     console.error('Error uploading image:', error);
+
+    if (error instanceof multer.MulterError) {
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'File too large. Maximum size is 100MB.'
+        });
+      }
+    }
+
     res.status(500).json({
       success: false,
-      message: 'Failed to upload image'
+      message: 'Failed to upload image: ' + error.message
     });
   }
 });
 
 // Video upload endpoint
-router.post('/upload-video', authenticateToken, async (req, res) => {
+router.post('/upload-video', authenticateToken, upload.single('video'), async (req, res) => {
   try {
-    // For now, return a placeholder since we don't have actual video upload configured
-    // In production, you'd use multer and cloud storage like AWS S3 or Cloudinary
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No video file provided'
+      });
+    }
 
+    // For development, we'll use placeholder URLs
+    // In production, you'd upload to AWS S3, Cloudinary, or similar service
     const videoUrl = `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4`;
     const thumbnailUrl = `https://picsum.photos/800/450?random=${Date.now()}`;
+
+    // Log file details for debugging
+    console.log('Video upload details:', {
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      user: req.user.id
+    });
 
     res.json({
       success: true,
       message: 'Video uploaded successfully',
       videoUrl: videoUrl,
-      thumbnailUrl: thumbnailUrl
+      thumbnailUrl: thumbnailUrl,
+      fileDetails: {
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size
+      }
     });
 
   } catch (error) {
     console.error('Error uploading video:', error);
+
+    if (error instanceof multer.MulterError) {
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'File too large. Maximum size is 100MB.'
+        });
+      }
+    }
+
     res.status(500).json({
       success: false,
-      message: 'Failed to upload video'
+      message: 'Failed to upload video: ' + error.message
     });
   }
 });
