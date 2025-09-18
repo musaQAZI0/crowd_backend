@@ -72,7 +72,7 @@ const eventSchema = new mongoose.Schema({
   location: {
     type: {
       type: String,
-      enum: ['online', 'venue'],
+      enum: ['online', 'venue', 'physical'],
       required: true
     },
     venue: {
