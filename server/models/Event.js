@@ -110,6 +110,123 @@ const eventSchema = new mongoose.Schema({
       type: String,
       default: 'USD'
     },
+    // Advanced ticket classes structure based on Eventbrite model
+    ticketClasses: [{
+      id: {
+        type: String,
+        default: function() { return new mongoose.Types.ObjectId().toString(); }
+      },
+      name: {
+        type: String,
+        required: true
+      },
+      type: {
+        type: String,
+        enum: ['free', 'paid', 'donation'],
+        required: true
+      },
+      free: {
+        type: Boolean,
+        default: function() { return this.type === 'free'; }
+      },
+      donation: {
+        type: Boolean,
+        default: function() { return this.type === 'donation'; }
+      },
+      cost: {
+        value: {
+          type: Number,
+          default: 0
+        },
+        currency: {
+          type: String,
+          default: 'USD'
+        },
+        display: String // "USD,2000" format
+      },
+      suggestedDonation: {
+        type: Number,
+        default: 0
+      },
+      quantity: {
+        total: Number, // null for unlimited
+        sold: {
+          type: Number,
+          default: 0
+        },
+        reserved: {
+          type: Number,
+          default: 0
+        }
+      },
+      restrictions: {
+        minimumQuantity: {
+          type: Number,
+          default: 1
+        },
+        maximumQuantity: Number, // null for unlimited
+        requiresApproval: {
+          type: Boolean,
+          default: false
+        }
+      },
+      sales: {
+        start: Date,
+        end: Date,
+        hideSaleDates: {
+          type: Boolean,
+          default: false
+        }
+      },
+      visibility: {
+        hidden: {
+          type: Boolean,
+          default: false
+        },
+        autoHide: {
+          type: Boolean,
+          default: false
+        },
+        autoHideBefore: Date,
+        autoHideAfter: Date
+      },
+      salesChannels: [{
+        type: String,
+        enum: ['online', 'atd', 'facebook', 'everywhere'],
+        default: 'online'
+      }],
+      deliveryMethods: [{
+        type: String,
+        enum: ['electronic', 'physical', 'will_call'],
+        default: 'electronic'
+      }],
+      fees: {
+        includeFee: {
+          type: Boolean,
+          default: false
+        },
+        absorptionType: {
+          type: String,
+          enum: ['absorb_fee', 'pass_fee', 'split_fee']
+        }
+      },
+      description: String,
+      inventoryTierId: String, // For tiered events
+      order: {
+        type: Number,
+        default: 0
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      },
+      updatedAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+
+    // Legacy tickets field for backward compatibility
     tickets: [{
       name: String,
       price: Number,
@@ -118,6 +235,70 @@ const eventSchema = new mongoose.Schema({
       description: String
     }]
   },
+
+  // Inventory Tiers for advanced capacity management
+  inventoryTiers: [{
+    id: {
+      type: String,
+      default: function() { return new mongoose.Types.ObjectId().toString(); }
+    },
+    name: {
+      type: String,
+      required: true
+    },
+    quantityTotal: Number, // null for unlimited
+    countAgainstEventCapacity: {
+      type: Boolean,
+      default: true
+    },
+    isAddon: {
+      type: Boolean,
+      default: false // Add-ons don't count toward event capacity
+    },
+    description: String,
+    order: {
+      type: Number,
+      default: 0
+    }
+  }],
+
+  // Ticket Groups for grouping multiple ticket classes
+  ticketGroups: [{
+    id: {
+      type: String,
+      default: function() { return new mongoose.Types.ObjectId().toString(); }
+    },
+    name: {
+      type: String,
+      required: true,
+      maxlength: 20
+    },
+    status: {
+      type: String,
+      enum: ['live', 'transfer', 'deleted', 'archived'],
+      default: 'live'
+    },
+    ticketClassIds: [String], // Array of ticket class IDs in this group
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
+  // Inventory information
+  inventoryInfo: {
+    hasAdmissionTiers: {
+      type: Boolean,
+      default: false
+    },
+    totalCapacity: Number,
+    remainingCapacity: Number,
+    soldOut: {
+      type: Boolean,
+      default: false
+    }
+  },
+
   images: [{
     url: String,
     alt: String,
@@ -374,6 +555,131 @@ eventSchema.statics.findFeatured = function(limit = 10) {
     status: 'published',
     visibility: 'public'
   }).limit(limit).sort({ createdAt: -1 });
+};
+
+// Ticket Class Methods
+eventSchema.methods.addTicketClass = function(ticketData) {
+  if (!this.ticketClasses) {
+    this.ticketClasses = [];
+  }
+
+  const ticketClass = {
+    id: new mongoose.Types.ObjectId().toString(),
+    ...ticketData,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+
+  this.ticketClasses.push(ticketClass);
+  return ticketClass;
+};
+
+eventSchema.methods.updateTicketClass = function(ticketClassId, updateData) {
+  const ticketClass = this.ticketClasses.id(ticketClassId) ||
+                      this.ticketClasses.find(tc => tc.id === ticketClassId);
+
+  if (ticketClass) {
+    Object.assign(ticketClass, updateData);
+    ticketClass.updatedAt = new Date();
+    return ticketClass;
+  }
+  return null;
+};
+
+eventSchema.methods.removeTicketClass = function(ticketClassId) {
+  const index = this.ticketClasses.findIndex(tc => tc.id === ticketClassId);
+  if (index > -1) {
+    return this.ticketClasses.splice(index, 1)[0];
+  }
+  return null;
+};
+
+eventSchema.methods.getRemainingTickets = function(ticketClassId) {
+  const ticketClass = this.ticketClasses.find(tc => tc.id === ticketClassId);
+  if (!ticketClass || !ticketClass.quantity.total) {
+    return null; // Unlimited
+  }
+  return ticketClass.quantity.total - ticketClass.quantity.sold - ticketClass.quantity.reserved;
+};
+
+// Inventory Tier Methods
+eventSchema.methods.addInventoryTier = function(tierData) {
+  if (!this.inventoryTiers) {
+    this.inventoryTiers = [];
+  }
+
+  const tier = {
+    id: new mongoose.Types.ObjectId().toString(),
+    ...tierData
+  };
+
+  this.inventoryTiers.push(tier);
+  this.inventoryInfo.hasAdmissionTiers = true;
+  return tier;
+};
+
+eventSchema.methods.updateInventoryTier = function(tierId, updateData) {
+  const tier = this.inventoryTiers.find(t => t.id === tierId);
+  if (tier) {
+    Object.assign(tier, updateData);
+    return tier;
+  }
+  return null;
+};
+
+// Ticket Group Methods
+eventSchema.methods.addTicketGroup = function(groupData) {
+  if (!this.ticketGroups) {
+    this.ticketGroups = [];
+  }
+
+  const group = {
+    id: new mongoose.Types.ObjectId().toString(),
+    ...groupData,
+    createdAt: new Date()
+  };
+
+  this.ticketGroups.push(group);
+  return group;
+};
+
+eventSchema.methods.addTicketClassToGroup = function(ticketClassId, groupId) {
+  const group = this.ticketGroups.find(g => g.id === groupId);
+  if (group && !group.ticketClassIds.includes(ticketClassId)) {
+    group.ticketClassIds.push(ticketClassId);
+    return group;
+  }
+  return null;
+};
+
+eventSchema.methods.removeTicketClassFromGroup = function(ticketClassId, groupId) {
+  const group = this.ticketGroups.find(g => g.id === groupId);
+  if (group) {
+    const index = group.ticketClassIds.indexOf(ticketClassId);
+    if (index > -1) {
+      group.ticketClassIds.splice(index, 1);
+      return group;
+    }
+  }
+  return null;
+};
+
+// Calculate total event capacity
+eventSchema.methods.calculateTotalCapacity = function() {
+  if (!this.inventoryInfo.hasAdmissionTiers) {
+    // Simple capacity based on event capacity or sum of ticket classes
+    return this.capacity?.total || null;
+  }
+
+  // For tiered events, sum the tier capacities
+  let totalCapacity = 0;
+  this.inventoryTiers.forEach(tier => {
+    if (tier.countAgainstEventCapacity && tier.quantityTotal) {
+      totalCapacity += tier.quantityTotal;
+    }
+  });
+
+  return totalCapacity || null;
 };
 
 module.exports = mongoose.model('Event', eventSchema);

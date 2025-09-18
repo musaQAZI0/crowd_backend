@@ -1123,4 +1123,417 @@ router.post('/:id/copy', authenticateToken, async (req, res) => {
   }
 });
 
+// ================================
+// ADVANCED TICKET CLASS MANAGEMENT
+// ================================
+
+// Get event with ticket classes expansion
+router.get('/:id/ticket-classes', authenticateToken, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check if user owns the event
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to access this event'
+      });
+    }
+
+    res.json({
+      success: true,
+      ticketClasses: event.ticketClasses || [],
+      inventoryTiers: event.inventoryTiers || [],
+      ticketGroups: event.ticketGroups || [],
+      inventoryInfo: event.inventoryInfo || {}
+    });
+
+  } catch (error) {
+    console.error('Error fetching ticket classes:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch ticket classes'
+    });
+  }
+});
+
+// Create ticket class
+router.post('/:id/ticket-classes', authenticateToken, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check if user owns the event
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this event'
+      });
+    }
+
+    const ticketClassData = {
+      name: req.body.name,
+      type: req.body.type,
+      cost: {
+        value: req.body.cost?.value || 0,
+        currency: req.body.cost?.currency || 'USD',
+        display: req.body.cost?.display
+      },
+      suggestedDonation: req.body.suggestedDonation || 0,
+      quantity: {
+        total: req.body.quantity?.total || null,
+        sold: 0,
+        reserved: 0
+      },
+      restrictions: {
+        minimumQuantity: req.body.restrictions?.minimumQuantity || 1,
+        maximumQuantity: req.body.restrictions?.maximumQuantity || null,
+        requiresApproval: req.body.restrictions?.requiresApproval || false
+      },
+      sales: {
+        start: req.body.sales?.start ? new Date(req.body.sales.start) : null,
+        end: req.body.sales?.end ? new Date(req.body.sales.end) : null,
+        hideSaleDates: req.body.sales?.hideSaleDates || false
+      },
+      visibility: {
+        hidden: req.body.visibility?.hidden || false,
+        autoHide: req.body.visibility?.autoHide || false,
+        autoHideBefore: req.body.visibility?.autoHideBefore ? new Date(req.body.visibility.autoHideBefore) : null,
+        autoHideAfter: req.body.visibility?.autoHideAfter ? new Date(req.body.visibility.autoHideAfter) : null
+      },
+      salesChannels: req.body.salesChannels || ['online'],
+      deliveryMethods: req.body.deliveryMethods || ['electronic'],
+      fees: {
+        includeFee: req.body.fees?.includeFee || false,
+        absorptionType: req.body.fees?.absorptionType || 'pass_fee'
+      },
+      description: req.body.description || '',
+      inventoryTierId: req.body.inventoryTierId || null,
+      order: req.body.order || 0
+    };
+
+    const newTicketClass = event.addTicketClass(ticketClassData);
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Ticket class created successfully',
+      ticketClass: newTicketClass
+    });
+
+  } catch (error) {
+    console.error('Error creating ticket class:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create ticket class'
+    });
+  }
+});
+
+// Update ticket class
+router.put('/:id/ticket-classes/:ticketClassId', authenticateToken, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check if user owns the event
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this event'
+      });
+    }
+
+    const updatedTicketClass = event.updateTicketClass(req.params.ticketClassId, req.body);
+    if (!updatedTicketClass) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ticket class not found'
+      });
+    }
+
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Ticket class updated successfully',
+      ticketClass: updatedTicketClass
+    });
+
+  } catch (error) {
+    console.error('Error updating ticket class:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update ticket class'
+    });
+  }
+});
+
+// Delete ticket class
+router.delete('/:id/ticket-classes/:ticketClassId', authenticateToken, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check if user owns the event
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this event'
+      });
+    }
+
+    const removedTicketClass = event.removeTicketClass(req.params.ticketClassId);
+    if (!removedTicketClass) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ticket class not found'
+      });
+    }
+
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Ticket class deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting ticket class:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete ticket class'
+    });
+  }
+});
+
+// ================================
+// INVENTORY TIERS MANAGEMENT
+// ================================
+
+// Create inventory tier
+router.post('/:id/inventory-tiers', authenticateToken, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check if user owns the event
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this event'
+      });
+    }
+
+    const tierData = {
+      name: req.body.name,
+      quantityTotal: req.body.quantityTotal,
+      countAgainstEventCapacity: req.body.countAgainstEventCapacity !== false,
+      isAddon: req.body.isAddon || false,
+      description: req.body.description || '',
+      order: req.body.order || 0
+    };
+
+    const newTier = event.addInventoryTier(tierData);
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Inventory tier created successfully',
+      inventoryTier: newTier
+    });
+
+  } catch (error) {
+    console.error('Error creating inventory tier:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create inventory tier'
+    });
+  }
+});
+
+// Get inventory tiers
+router.get('/:id/inventory-tiers', authenticateToken, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      inventoryTiers: event.inventoryTiers || []
+    });
+
+  } catch (error) {
+    console.error('Error fetching inventory tiers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch inventory tiers'
+    });
+  }
+});
+
+// ================================
+// TICKET GROUPS MANAGEMENT
+// ================================
+
+// Create ticket group
+router.post('/:id/ticket-groups', authenticateToken, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check if user owns the event
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this event'
+      });
+    }
+
+    const groupData = {
+      name: req.body.name.substring(0, 20), // Eventbrite limit
+      status: req.body.status || 'live',
+      ticketClassIds: req.body.ticketClassIds || []
+    };
+
+    const newGroup = event.addTicketGroup(groupData);
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Ticket group created successfully',
+      ticketGroup: newGroup
+    });
+
+  } catch (error) {
+    console.error('Error creating ticket group:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create ticket group'
+    });
+  }
+});
+
+// Add ticket class to group
+router.post('/:id/ticket-classes/:ticketClassId/ticket-groups', authenticateToken, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check if user owns the event
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this event'
+      });
+    }
+
+    const ticketGroupIds = req.body.ticket_group_ids || req.body.ticketGroupIds;
+    const results = [];
+
+    for (const groupId of ticketGroupIds) {
+      const updatedGroup = event.addTicketClassToGroup(req.params.ticketClassId, groupId);
+      if (updatedGroup) {
+        results.push(updatedGroup);
+      }
+    }
+
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Ticket class added to groups successfully',
+      updatedGroups: results
+    });
+
+  } catch (error) {
+    console.error('Error adding ticket class to groups:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add ticket class to groups'
+    });
+  }
+});
+
+// Get remaining tickets for a ticket class
+router.get('/:id/ticket-classes/:ticketClassId/remaining', authenticateToken, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    const remaining = event.getRemainingTickets(req.params.ticketClassId);
+    const ticketClass = event.ticketClasses.find(tc => tc.id === req.params.ticketClassId);
+
+    if (!ticketClass) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ticket class not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      ticketClassId: req.params.ticketClassId,
+      quantityTotal: ticketClass.quantity.total,
+      quantitySold: ticketClass.quantity.sold,
+      quantityReserved: ticketClass.quantity.reserved,
+      remaining: remaining,
+      unlimited: remaining === null
+    });
+
+  } catch (error) {
+    console.error('Error getting remaining tickets:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get remaining tickets'
+    });
+  }
+});
+
 module.exports = router;
