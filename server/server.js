@@ -29,14 +29,52 @@ const monetizeRoutes = require('./routes/monetize');
 const adminRoutes = require('./routes/admin');
 const pageRoutes = require('./routes/pages');
 
-// Connect to MongoDB
+// Connect to MongoDB with enhanced error handling
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/crowd_events');
-    console.log('MongoDB connected successfully');
+    const mongoURI = process.env.NODE_ENV === 'production'
+      ? process.env.MONGODB_URI_PRODUCTION
+      : process.env.MONGODB_URI || 'mongodb://localhost:27017/crowd_events';
+
+    console.log('Connecting to MongoDB...');
+    console.log('Environment:', process.env.NODE_ENV);
+    console.log('URI configured:', mongoURI ? 'Yes' : 'No');
+
+    const options = {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+      maxPoolSize: 10,
+      retryWrites: true,
+    };
+
+    await mongoose.connect(mongoURI, options);
+    console.log('✅ MongoDB connected successfully');
+    console.log('Database name:', mongoose.connection.name);
+
+    // Monitor connection events
+    mongoose.connection.on('error', (err) => {
+      console.error('MongoDB connection error:', err);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      console.warn('MongoDB disconnected');
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      console.log('MongoDB reconnected');
+    });
+
   } catch (error) {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
+    console.error('❌ MongoDB connection failed:');
+    console.error('Error:', error.message);
+    console.error('Stack:', error.stack);
+
+    // Don't exit in production, try to continue without database
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    }
   }
 };
 
@@ -103,7 +141,9 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
-    mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/crowd_events',
+    mongoUrl: process.env.NODE_ENV === 'production'
+      ? process.env.MONGODB_URI_PRODUCTION
+      : process.env.MONGODB_URI || 'mongodb://localhost:27017/crowd_events',
     touchAfter: 24 * 3600 // lazy session update
   }),
   cookie: {
