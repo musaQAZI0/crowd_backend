@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const MonetizeApplication = require('../models/MonetizeApplication');
+const { authenticateToken } = require('../middleware/auth');
+const { requireAdminAuth } = require('../middleware/adminAuth');
+const rateLimit = require('express-rate-limit');
 
 // Root monetize endpoint - show available endpoints
 router.get('/', (req, res) => {
@@ -24,9 +27,6 @@ router.get('/', (req, res) => {
     statusTypes: ['pending', 'under_review', 'approved', 'rejected', 'needs_info']
   });
 });
-const { authenticateToken } = require('../middleware/auth');
-const { requireAdminAuth } = require('../middleware/adminAuth');
-const rateLimit = require('express-rate-limit');
 
 // Rate limiting for application submissions
 const applicationLimit = rateLimit({
