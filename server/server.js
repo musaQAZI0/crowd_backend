@@ -47,6 +47,7 @@ const connectDB = async () => {
       connectTimeoutMS: 10000,
       maxPoolSize: 10,
       retryWrites: true,
+      dbName: 'crowd_events'
     };
 
     await mongoose.connect(mongoURI, options);
