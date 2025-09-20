@@ -144,7 +144,8 @@ app.use(session({
     mongoUrl: process.env.NODE_ENV === 'production'
       ? process.env.MONGODB_URI_PRODUCTION
       : process.env.MONGODB_URI || 'mongodb://localhost:27017/crowd_events',
-    touchAfter: 24 * 3600 // lazy session update
+    touchAfter: 24 * 3600, // lazy session update
+    dbName: 'crowd_events' // explicitly set database name
   }),
   cookie: {
     secure: process.env.NODE_ENV === 'production',
