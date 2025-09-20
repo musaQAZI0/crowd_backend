@@ -1,6 +1,29 @@
 const express = require('express');
 const router = express.Router();
 const MonetizeApplication = require('../models/MonetizeApplication');
+
+// Root monetize endpoint - show available endpoints
+router.get('/', (req, res) => {
+  res.json({
+    message: 'Monetize API',
+    status: 'operational',
+    description: 'API for managing influencer and venue monetization applications',
+    endpoints: {
+      'POST /apply/influencer': 'Submit influencer application (auth required)',
+      'POST /apply/venue': 'Submit venue application (auth required)',
+      'GET /my-applications': 'Get user applications (auth required)',
+      'GET /application/:id': 'Get specific application (auth required)',
+      'GET /admin/applications': 'Get all applications (admin only)',
+      'GET /admin/stats': 'Get application statistics (admin only)',
+      'PATCH /admin/application/:id/status': 'Update application status (admin only)',
+      'GET /admin/application/:id': 'Get specific application (admin only)',
+      'DELETE /admin/application/:id': 'Delete application (admin only)',
+      'GET /admin/search': 'Search applications (admin only)'
+    },
+    applicationTypes: ['influencer', 'venue'],
+    statusTypes: ['pending', 'under_review', 'approved', 'rejected', 'needs_info']
+  });
+});
 const { authenticateToken } = require('../middleware/auth');
 const { requireAdminAuth } = require('../middleware/adminAuth');
 const rateLimit = require('express-rate-limit');

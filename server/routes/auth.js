@@ -6,6 +6,34 @@ const { generateTokens, authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Root auth endpoint - show available endpoints
+router.get('/', (req, res) => {
+  res.json({
+    message: 'Auth API',
+    status: 'operational',
+    endpoints: {
+      'POST /register': 'Register new user',
+      'POST /login': 'User login',
+      'GET /profile': 'Get user profile (auth required)',
+      'PUT /profile': 'Update user profile (auth required)',
+      'PUT /change-password': 'Change password (auth required)',
+      'POST /logout': 'Logout user (auth required)',
+      'GET /google': 'Google OAuth login',
+      'GET /google/callback': 'Google OAuth callback',
+      'POST /verify-token': 'Verify JWT token',
+      'GET /verify': 'Verify authentication (auth required)',
+      'GET /check': 'Check authentication status',
+      'DELETE /account': 'Delete account (auth required)',
+      'GET /auth-status': 'Get auth status (auth required)',
+      'GET /sessions': 'Get active sessions (auth required)',
+      'POST /revoke-all-sessions': 'Revoke all sessions (auth required)',
+      'GET /stats': 'Get auth stats (admin only)',
+      'GET /admin/users-status': 'Get users status (admin only)',
+      'GET /csrf-token': 'Get CSRF token'
+    }
+  });
+});
+
 // CSRF Token endpoint
 router.get('/csrf-token', (req, res) => {
   // Generate a simple CSRF token for this session
