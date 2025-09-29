@@ -21,6 +21,7 @@ if (process.env.NODE_ENV === 'production') {
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const eventRoutes = require('./routes/events');
+const categoryRoutes = require('./routes/categories');
 const financeRoutes = require('./routes/finance');
 const appRoutes = require('./routes/apps');
 const dashboardRoutes = require('./routes/dashboard');
@@ -181,6 +182,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/categories', categoryRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/apps', appRoutes);
 app.use('/api/dashboard', dashboardRoutes);
@@ -203,6 +205,7 @@ app.get('/api/health', (req, res) => {
       auth: `http://localhost:${currentPort}/api/auth`,
       users: `http://localhost:${currentPort}/api/users`,
       events: `http://localhost:${currentPort}/api/events`,
+      categories: `http://localhost:${currentPort}/api/categories`,
       finance: `http://localhost:${currentPort}/api/finance`,
       apps: `http://localhost:${currentPort}/api/apps`,
       dashboard: `http://localhost:${currentPort}/api/dashboard`,
@@ -236,6 +239,7 @@ app.listen(PORT, () => {
   console.log(`   • Auth: http://localhost:${PORT}/api/auth`);
   console.log(`   • Users: http://localhost:${PORT}/api/users`);
   console.log(`   • Events: http://localhost:${PORT}/api/events`);
+  console.log(`   • Categories: http://localhost:${PORT}/api/categories`);
   console.log(`   • Finance: http://localhost:${PORT}/api/finance`);
   console.log(`   • Apps: http://localhost:${PORT}/api/apps`);
   console.log(`   • Dashboard: http://localhost:${PORT}/api/dashboard`);

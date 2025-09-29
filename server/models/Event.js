@@ -23,12 +23,10 @@ const eventSchema = new mongoose.Schema({
 
         // Convert to lowercase for validation
         const validCategories = [
-          'music', 'nightlife', 'performing-arts', 'holidays',
-          'dating', 'hobbies', 'business', 'food-drink',
-          'sports-fitness', 'health', 'travel', 'charity',
-          'community', 'family', 'education', 'fashion',
-          'film', 'games', 'government', 'language-culture',
-          'lgbtq', 'lifestyle', 'other'
+          'music', 'business', 'food', 'community', 'performing-arts',
+          'film-media', 'sports', 'health', 'science-tech', 'travel-outdoor',
+          'charity', 'religion', 'family-education', 'seasonal', 'government',
+          'fashion', 'home-lifestyle', 'auto-boat-air', 'hobbies', 'school', 'other'
         ];
 
         return validCategories.includes(v.toLowerCase());
@@ -399,6 +397,30 @@ const eventSchema = new mongoose.Schema({
     type: String,
     enum: ['draft', 'published', 'cancelled', 'completed'],
     default: 'draft'
+  },
+  eventType: {
+    type: String,
+    trim: true,
+    validate: {
+      validator: function(v) {
+        if (!v) return true; // Optional field
+        const validEventTypes = [
+          'conference', 'seminar', 'tradeshow', 'convention', 'festival',
+          'concert', 'screening', 'dinner', 'class', 'meeting', 'party',
+          'rally', 'tournament', 'game', 'race', 'tour', 'attraction',
+          'camp', 'appearance', 'other'
+        ];
+        return validEventTypes.includes(v.toLowerCase());
+      },
+      message: 'Invalid event type provided'
+    },
+    set: function(v) {
+      return v ? v.toLowerCase() : v;
+    }
+  },
+  publishedAt: {
+    type: Date,
+    default: null
   },
   visibility: {
     type: String,

@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const Event = require('../models/Event');
 const { authenticateToken } = require('../middleware/auth');
+const { validateEventPublishing, validateEventUpdate, checkPublishingRequirements } = require('../middleware/eventValidation');
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -501,8 +502,57 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
+// Check event publishing requirements (Protected route)
+router.get('/:id/publishing-requirements', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found'
+      });
+    }
+
+    // Check ownership
+    if (event.organizer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized to access this event'
+      });
+    }
+
+    // Get ticket classes (if any)
+    const ticketClasses = event.ticketClasses || event.pricing?.tickets || [];
+
+    // Check publishing requirements
+    const requirementsCheck = checkPublishingRequirements(event, ticketClasses);
+
+    res.json({
+      success: true,
+      event: {
+        id: event._id,
+        title: event.title,
+        status: event.status,
+        publishedAt: event.publishedAt
+      },
+      publishingRequirements: requirementsCheck.requirements,
+      canPublish: requirementsCheck.allRequirementsMet,
+      missingRequirements: requirementsCheck.missingRequirements
+    });
+
+  } catch (error) {
+    console.error('Error checking publishing requirements:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check publishing requirements'
+    });
+  }
+});
+
 // Update event (Protected route)
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticateToken, validateEventUpdate, validateEventPublishing, async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
@@ -568,6 +618,32 @@ router.put('/:id', authenticateToken, async (req, res) => {
         url: updateData.imageUrl,
         isPrimary: true
       }];
+    }
+
+    // Handle publishing logic
+    if (updateData.status === 'published' && event.status !== 'published') {
+      // Event is being published for the first time
+      updateData.publishedAt = new Date();
+      console.log('Event being published:', id, 'at', updateData.publishedAt);
+    }
+
+    // Validate required fields for publishing
+    if (updateData.status === 'published') {
+      const requiredFields = ['title', 'description', 'dateTime.start', 'location'];
+      const errors = [];
+
+      if (!event.title && !updateData.title) errors.push('title');
+      if (!event.description && !updateData.description) errors.push('description');
+      if (!event.dateTime?.start && !updateData.dateTime?.start) errors.push('date and time');
+      if (!event.location?.venue?.name && !updateData.location?.venue?.name) errors.push('location');
+
+      if (errors.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot publish event. Missing required fields: ${errors.join(', ')}`,
+          missingFields: errors
+        });
+      }
     }
 
     const updatedEvent = await Event.findByIdAndUpdate(
