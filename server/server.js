@@ -8,9 +8,30 @@ const MongoStore = require('connect-mongo');
 const passport = require('passport');
 const path = require('path');
 const expressLayouts = require('express-ejs-layouts');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 const app = express();
+const server = createServer(app);
+
+// Initialize Socket.io with CORS configuration
+const io = new Server(server, {
+  cors: {
+    origin: process.env.NODE_ENV === 'production'
+      ? [
+          'https://relaxed-syrniki-d198c9.netlify.app',
+          'https://serene-florentine-4e8889.netlify.app',
+          'https://magnificent-haupia-4fdebf.netlify.app',
+          'https://dazzling-pithivier-2cf3ce.netlify.app',
+          process.env.FRONTEND_URL
+        ].filter(Boolean)
+      : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://localhost:8001', 'http://localhost:8080', 'http://127.0.0.1:8080', 'http://localhost:8081', 'http://127.0.0.1:8081', 'http://192.168.1.4:8081', 'http://127.0.0.1:5500'],
+    credentials: true,
+    methods: ['GET', 'POST']
+  },
+  transports: ['websocket', 'polling']
+});
 
 // Trust proxy for production deployment (fixes rate limiting issues)
 if (process.env.NODE_ENV === 'production') {
@@ -29,6 +50,16 @@ const organizerRoutes = require('./routes/organizer');
 const monetizeRoutes = require('./routes/monetize');
 const adminRoutes = require('./routes/admin');
 const pageRoutes = require('./routes/pages');
+
+// New advanced routes
+const marketingRoutes = require('./routes/marketing');
+const teamRoutes = require('./routes/team');
+const safetyRoutes = require('./routes/safety');
+const liveEventsRoutes = require('./routes/live-events');
+const automationRoutes = require('./routes/automation');
+
+// Import Socket.io handler
+const { handleConnection } = require('./socket/socketHandler');
 
 // Connect to MongoDB with enhanced error handling
 const connectDB = async () => {
@@ -190,6 +221,13 @@ app.use('/api/organizer', organizerRoutes);
 app.use('/api/monetize', monetizeRoutes);
 app.use('/api/admin', authLimiter, adminRoutes);
 
+// Advanced API routes
+app.use('/api/marketing', marketingRoutes);
+app.use('/api/team', teamRoutes);
+app.use('/api/safety', safetyRoutes);
+app.use('/api/live-events', liveEventsRoutes);
+app.use('/api/automation', automationRoutes);
+
 // Page routes
 app.use('/', pageRoutes);
 
@@ -211,6 +249,11 @@ app.get('/api/health', (req, res) => {
       dashboard: `http://localhost:${currentPort}/api/dashboard`,
       organizer: `http://localhost:${currentPort}/api/organizer`,
       monetize: `http://localhost:${currentPort}/api/monetize`,
+      marketing: `http://localhost:${currentPort}/api/marketing`,
+      team: `http://localhost:${currentPort}/api/team`,
+      safety: `http://localhost:${currentPort}/api/safety`,
+      liveEvents: `http://localhost:${currentPort}/api/live-events`,
+      automation: `http://localhost:${currentPort}/api/automation`,
       frontend: `http://localhost:${currentPort}`
     }
   });
@@ -230,10 +273,14 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
+// Initialize Socket.io connection handling
+handleConnection(io);
+
 const PORT = process.env.PORT || 3002;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 Socket.io enabled for real-time features`);
   console.log(`📍 API endpoints available at:`);
   console.log(`   • Health: http://localhost:${PORT}/api/health`);
   console.log(`   • Auth: http://localhost:${PORT}/api/auth`);
@@ -245,5 +292,10 @@ app.listen(PORT, () => {
   console.log(`   • Dashboard: http://localhost:${PORT}/api/dashboard`);
   console.log(`   • Organizer: http://localhost:${PORT}/api/organizer`);
   console.log(`   • Monetize: http://localhost:${PORT}/api/monetize`);
+  console.log(`   • Marketing: http://localhost:${PORT}/api/marketing`);
+  console.log(`   • Team: http://localhost:${PORT}/api/team`);
+  console.log(`   • Safety: http://localhost:${PORT}/api/safety`);
+  console.log(`   • Live Events: http://localhost:${PORT}/api/live-events`);
+  console.log(`   • Automation: http://localhost:${PORT}/api/automation`);
   console.log(`   • Frontend: http://localhost:${PORT}`);
 });

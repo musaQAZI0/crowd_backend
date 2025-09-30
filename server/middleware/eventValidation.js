@@ -2,7 +2,7 @@ const Joi = require('joi');
 
 // Validation schemas for event publishing
 const eventPublishingValidation = {
-  // Basic event requirements for publishing
+  // Basic event requirements for publishing - simplified and permissive
   publishRequirements: Joi.object({
     title: Joi.string().required().min(1).max(200).messages({
       'string.empty': 'Event title is required',
@@ -27,7 +27,7 @@ const eventPublishingValidation = {
         'date.greater': 'Event end date must be after start date',
         'any.required': 'Event end date is required for publishing'
       })
-    }).required(),
+    }).unknown(true).required(), // Allow additional fields like timezone
 
     location: Joi.object({
       type: Joi.string().valid('online', 'venue', 'physical').required(),
@@ -45,8 +45,8 @@ const eventPublishingValidation = {
             country: Joi.string().default('United States'),
             street: Joi.string(),
             zipCode: Joi.string()
-          })
-        }).required(),
+          }).unknown(true) // Allow additional address fields
+        }).unknown(true).required(), // Allow additional venue fields
         otherwise: Joi.optional()
       }),
       onlineDetails: Joi.when('type', {
@@ -55,10 +55,10 @@ const eventPublishingValidation = {
           platform: Joi.string().required(),
           url: Joi.string().uri().required(),
           accessInstructions: Joi.string()
-        }).required(),
+        }).unknown(true).required(), // Allow additional online details
         otherwise: Joi.optional()
       })
-    }).required(),
+    }).unknown(true).required(), // Allow additional location fields
 
     category: Joi.string().valid(
       'music', 'business', 'food', 'community', 'performing-arts',
@@ -80,19 +80,14 @@ const eventPublishingValidation = {
       'any.only': 'Invalid event type'
     }),
 
-    // At least one ticket type is required
+    // More permissive pricing validation
     pricing: Joi.object({
       type: Joi.string().valid('free', 'paid').required(),
       ticketClasses: Joi.array().min(1).messages({
         'array.min': 'At least one ticket type is required for publishing'
       })
-    }).when('ticketClasses', {
-      is: Joi.array().min(1),
-      otherwise: Joi.object({
-        type: Joi.string().valid('free', 'paid').required()
-      })
-    })
-  }),
+    }).unknown(true) // Allow additional pricing fields
+  }).unknown(true), // Allow all additional fields at root level
 
   // Update validation schema
   updateEvent: Joi.object({
@@ -168,15 +163,21 @@ const validateEventPublishing = async (req, res, next) => {
       });
     }
 
-    // Merge current event data with update data
+    // Create a clean object with only the fields needed for publishing validation
     const eventDataToValidate = {
-      ...currentEvent.toObject(),
-      ...req.body
+      title: req.body.title || currentEvent.title,
+      description: req.body.description || currentEvent.description,
+      dateTime: req.body.dateTime || currentEvent.dateTime,
+      location: req.body.location || currentEvent.location,
+      category: req.body.category || currentEvent.category,
+      eventType: req.body.eventType || currentEvent.eventType,
+      pricing: req.body.pricing || currentEvent.pricing
     };
 
-    // Validate against publishing requirements
+    // Validate against publishing requirements with allowUnknown for flexibility
     const { error } = eventPublishingValidation.publishRequirements.validate(eventDataToValidate, {
-      abortEarly: false
+      abortEarly: false,
+      allowUnknown: true // Allow additional fields that might be present
     });
 
     if (error) {
@@ -211,9 +212,16 @@ const validateEventPublishing = async (req, res, next) => {
 // Middleware to validate event update data
 const validateEventUpdate = (req, res, next) => {
   try {
+    // Skip validation if body is empty or only contains status change
+    if (!req.body || Object.keys(req.body).length === 0 ||
+        (Object.keys(req.body).length === 1 && req.body.status)) {
+      return next();
+    }
+
     const { error } = eventPublishingValidation.updateEvent.validate(req.body, {
       abortEarly: false,
-      allowUnknown: true // Allow other fields not in schema
+      allowUnknown: true, // Allow other fields not in schema
+      stripUnknown: false // Don't remove unknown fields
     });
 
     if (error) {
