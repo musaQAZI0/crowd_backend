@@ -1300,6 +1300,40 @@ router.post('/:id/ticket-classes', authenticateToken, async (req, res) => {
     };
 
     const newTicketClass = event.addTicketClass(ticketClassData);
+
+    // Also sync with old pricing.ticketClasses for backward compatibility
+    if (!event.pricing) {
+      event.pricing = { type: 'free', ticketClasses: [] };
+    }
+    if (!event.pricing.ticketClasses) {
+      event.pricing.ticketClasses = [];
+    }
+
+    // Add to old format for compatibility
+    const legacyTicket = {
+      _id: newTicketClass.id,
+      id: newTicketClass.id,
+      name: newTicketClass.name,
+      type: newTicketClass.type,
+      cost: newTicketClass.cost,
+      suggestedDonation: newTicketClass.suggestedDonation,
+      quantity: newTicketClass.quantity,
+      restrictions: newTicketClass.restrictions,
+      sales: newTicketClass.sales,
+      visibility: newTicketClass.visibility,
+      salesChannels: newTicketClass.salesChannels,
+      deliveryMethods: newTicketClass.deliveryMethods,
+      fees: newTicketClass.fees,
+      description: newTicketClass.description,
+      order: newTicketClass.order,
+      free: newTicketClass.type === 'free',
+      donation: newTicketClass.type === 'donation',
+      createdAt: newTicketClass.createdAt,
+      updatedAt: newTicketClass.updatedAt
+    };
+
+    event.pricing.ticketClasses.push(legacyTicket);
+
     await event.save();
 
     res.json({
@@ -1344,6 +1378,36 @@ router.put('/:id/ticket-classes/:ticketClassId', authenticateToken, async (req, 
       });
     }
 
+    // Also update in old pricing.ticketClasses for backward compatibility
+    if (event.pricing && event.pricing.ticketClasses) {
+      const legacyIndex = event.pricing.ticketClasses.findIndex(tc => tc.id === req.params.ticketClassId);
+      if (legacyIndex !== -1) {
+        // Update the legacy ticket class with new data
+        const legacyTicket = {
+          _id: updatedTicketClass.id,
+          id: updatedTicketClass.id,
+          name: updatedTicketClass.name,
+          type: updatedTicketClass.type,
+          cost: updatedTicketClass.cost,
+          suggestedDonation: updatedTicketClass.suggestedDonation,
+          quantity: updatedTicketClass.quantity,
+          restrictions: updatedTicketClass.restrictions,
+          sales: updatedTicketClass.sales,
+          visibility: updatedTicketClass.visibility,
+          salesChannels: updatedTicketClass.salesChannels,
+          deliveryMethods: updatedTicketClass.deliveryMethods,
+          fees: updatedTicketClass.fees,
+          description: updatedTicketClass.description,
+          order: updatedTicketClass.order,
+          free: updatedTicketClass.type === 'free',
+          donation: updatedTicketClass.type === 'donation',
+          createdAt: updatedTicketClass.createdAt,
+          updatedAt: updatedTicketClass.updatedAt
+        };
+        event.pricing.ticketClasses[legacyIndex] = legacyTicket;
+      }
+    }
+
     await event.save();
 
     res.json({
@@ -1386,6 +1450,11 @@ router.delete('/:id/ticket-classes/:ticketClassId', authenticateToken, async (re
         success: false,
         message: 'Ticket class not found'
       });
+    }
+
+    // Also remove from old pricing.ticketClasses for backward compatibility
+    if (event.pricing && event.pricing.ticketClasses) {
+      event.pricing.ticketClasses = event.pricing.ticketClasses.filter(tc => tc.id !== req.params.ticketClassId);
     }
 
     await event.save();
