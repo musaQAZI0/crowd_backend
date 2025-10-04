@@ -395,7 +395,7 @@ const eventSchema = new mongoose.Schema({
   tags: [String],
   status: {
     type: String,
-    enum: ['draft', 'published', 'cancelled', 'completed'],
+    enum: ['draft', 'live', 'started', 'ended', 'completed', 'canceled'],
     default: 'draft'
   },
   eventType: {
@@ -467,13 +467,41 @@ const eventSchema = new mongoose.Schema({
   },
   summary: {
     type: String,
-    maxlength: 140
+    maxlength: 500  // Short summary describing the event
+  },
+  url: {
+    type: String,  // URL of the Event's listing page on crowd.com
+    trim: true
+  },
+  created: {
+    type: Date,  // Event creation date and time
+    default: Date.now
+  },
+  changed: {
+    type: Date,  // Date and time of most recent changes
+    default: Date.now
+  },
+  published: {
+    type: Date,  // Event publication date and time
+    default: null
+  },
+  hide_start_date: {
+    type: Boolean,
+    default: false  // If true, the start date should not be displayed
+  },
+  hide_end_date: {
+    type: Boolean,
+    default: false  // If true, the end date should not be displayed
   },
   password: String,
   currency: {
     type: String,
     default: 'USD',
-    enum: ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY']
+    enum: ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CNY', 'INR']  // ISO 4217 currency code
+  },
+  capacity_is_custom: {
+    type: Boolean,
+    default: false  // true = Use custom capacity value; false = Calculate from Ticket Classes
   },
   socialLinks: {
     facebook: String,
@@ -502,7 +530,59 @@ const eventSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
     }
-  }]
+  }],
+  // Music Properties for music-related events
+  music_properties: {
+    age_restriction: {
+      type: String,
+      enum: ['all_ages', '18+', '21+', 'family_friendly'],
+      default: null
+    },
+    presented_by: {
+      type: String,  // Main music event sponsor
+      trim: true
+    },
+    door_time: {
+      type: String,  // UTC time when doors open (HH:MM format)
+      trim: true
+    }
+  },
+  // External ticketing data
+  external_ticketing: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    url: String,
+    provider: String
+  },
+  // Checkout and payment settings
+  checkout_settings: {
+    country: {
+      type: String,
+      default: 'US'
+    },
+    currency: {
+      type: String,
+      default: 'USD'
+    }
+  },
+  // Display/listing properties
+  listing_properties: {
+    show_map: {
+      type: Boolean,
+      default: true
+    },
+    show_social_share: {
+      type: Boolean,
+      default: true
+    }
+  },
+  // Digital content flag
+  has_digital_content: {
+    type: Boolean,
+    default: false
+  }
 }, {
   timestamps: true
 });
