@@ -62,14 +62,75 @@ const userSchema = new mongoose.Schema({
     default: false
   },
   organizerProfile: {
-    companyName: String,
-    companyDescription: String,
-    website: String,
+    name: {
+      type: String,
+      trim: true
+    },
+    bio: {
+      type: String,
+      maxlength: 5000
+    },
+    eventDescription: {
+      type: String,
+      maxlength: 1000
+    },
+    website: {
+      type: String,
+      trim: true
+    },
+    profileImage: {
+      type: String
+    },
+    logo: {
+      type: String
+    },
+    urlSlug: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true
+    },
     socialMedia: {
-      facebook: String,
-      twitter: String,
-      instagram: String,
-      linkedin: String
+      facebook: {
+        type: String,
+        trim: true
+      },
+      twitter: {
+        type: String,
+        trim: true
+      },
+      instagram: {
+        type: String,
+        trim: true
+      },
+      linkedin: {
+        type: String,
+        trim: true
+      }
+    },
+    companyName: {
+      type: String,
+      trim: true
+    },
+    organizationName: {
+      type: String,
+      trim: true
+    },
+    preferredCountry: {
+      type: String,
+      trim: true
+    },
+    emailOptIn: {
+      type: Boolean,
+      default: false
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
     }
   },
   settings: {
