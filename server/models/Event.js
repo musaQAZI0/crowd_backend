@@ -535,8 +535,7 @@ const eventSchema = new mongoose.Schema({
   music_properties: {
     age_restriction: {
       type: String,
-      enum: ['all_ages', '18+', '21+', 'family_friendly'],
-      default: null
+      enum: ['all_ages', '18+', '21+', 'family_friendly']
     },
     presented_by: {
       type: String,  // Main music event sponsor
