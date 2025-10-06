@@ -143,16 +143,39 @@ const authLimiter = rateLimit({
 });
 
 // CORS configuration with enhanced preflight handling
+const allowedOrigins = [
+  // Production Netlify deployments
+  'https://relaxed-syrniki-d198c9.netlify.app',
+  'https://serene-florentine-4e8889.netlify.app',
+  'https://magnificent-haupia-4fdebf.netlify.app',
+  'https://dazzling-pithivier-2cf3ce.netlify.app',
+  // Local development
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:3001',
+  'http://localhost:8001',
+  'http://localhost:8080',
+  'http://127.0.0.1:8080',
+  'http://localhost:8081',
+  'http://127.0.0.1:8081',
+  'http://192.168.1.4:8081',
+  'http://127.0.0.1:5500',
+  // Environment variable
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? [
-        'https://relaxed-syrniki-d198c9.netlify.app',
-        'https://serene-florentine-4e8889.netlify.app',
-        'https://magnificent-haupia-4fdebf.netlify.app',
-        'https://dazzling-pithivier-2cf3ce.netlify.app',
-        process.env.FRONTEND_URL
-      ].filter(Boolean) // Remove any undefined values
-    : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://localhost:8001', 'http://localhost:8080', 'http://127.0.0.1:8080', 'http://localhost:8081', 'http://127.0.0.1:8081', 'http://192.168.1.4:8081', 'http://127.0.0.1:5500'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, curl)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
