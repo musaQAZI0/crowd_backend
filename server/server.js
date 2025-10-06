@@ -57,6 +57,7 @@ const teamRoutes = require('./routes/team');
 const safetyRoutes = require('./routes/safety');
 const liveEventsRoutes = require('./routes/live-events');
 const automationRoutes = require('./routes/automation');
+const analyticsRoutes = require('./routes/analytics');
 
 // Import Socket.io handler
 const { handleConnection } = require('./socket/socketHandler');
@@ -227,6 +228,7 @@ app.use('/api/team', teamRoutes);
 app.use('/api/safety', safetyRoutes);
 app.use('/api/live-events', liveEventsRoutes);
 app.use('/api/automation', automationRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Page routes
 app.use('/', pageRoutes);
@@ -253,6 +255,7 @@ app.get('/api/health', (req, res) => {
       team: `http://localhost:${currentPort}/api/team`,
       safety: `http://localhost:${currentPort}/api/safety`,
       liveEvents: `http://localhost:${currentPort}/api/live-events`,
+      analytics: `http://localhost:${currentPort}/api/analytics`,
       automation: `http://localhost:${currentPort}/api/automation`,
       frontend: `http://localhost:${currentPort}`
     }
@@ -296,6 +299,7 @@ server.listen(PORT, () => {
   console.log(`   • Team: http://localhost:${PORT}/api/team`);
   console.log(`   • Safety: http://localhost:${PORT}/api/safety`);
   console.log(`   • Live Events: http://localhost:${PORT}/api/live-events`);
+  console.log(`   • Analytics: http://localhost:${PORT}/api/analytics`);
   console.log(`   • Automation: http://localhost:${PORT}/api/automation`);
   console.log(`   • Frontend: http://localhost:${PORT}`);
 });
